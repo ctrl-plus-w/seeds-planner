@@ -48,6 +48,35 @@ class RunStorage:
             ]
         )
 
+    def load_plants(self, run_dir: Path) -> list[dict]:
+        path = run_dir / "plants.json"
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+
+    def select_run(self) -> Path | None:
+        runs = self.list_runs()
+        if not runs:
+            print("No scrape runs found. Run 'seeds-scraper scrape' first.")
+            return None
+        print("Available runs:")
+        for i, run in enumerate(runs, 1):
+            summary_path = run / "summary.json"
+            extra = ""
+            if summary_path.exists():
+                with open(summary_path, encoding="utf-8") as f:
+                    summary = json.load(f)
+                extra = f" — {summary.get('total_plants', '?')} plants, {summary.get('status', '?')}"
+            print(f"  [{i}] {run.name}{extra}")
+        choice = input(f"\nSelect a run [1-{len(runs)}]: ")
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(runs):
+                return runs[idx]
+        except ValueError:
+            pass
+        print("Invalid selection.")
+        return None
+
     def clean(self, force: bool = False) -> bool:
         if not self.base_dir.exists():
             print("Nothing to clean. .out/ directory does not exist.")

@@ -4,6 +4,7 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 BASE_URL = "https://permapeople.org/api"
+SITE_URL = "https://permapeople.org"
 REQUEST_DELAY = 0.5
 PAGE_SIZE = 100
 
