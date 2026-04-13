@@ -16,9 +16,6 @@ def load_config() -> dict[str, str]:
     key_id = env.get("PERMAPEOPLE_ID")
     key_secret = env.get("PERMAPEOPLE_KEY")
     if not key_id or not key_secret:
-        print(
-            "Error: PERMAPEOPLE_ID and PERMAPEOPLE_KEY must be set in .env",
-            file=sys.stderr,
-        )
+        print("Error: PERMAPEOPLE_ID and PERMAPEOPLE_KEY must be set in .env")
         sys.exit(1)
     return {"id": key_id, "key": key_secret}

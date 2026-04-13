@@ -92,7 +92,7 @@ def cmd_companions(args: argparse.Namespace) -> None:
         runs = storage.list_runs()
         matching = [r for r in runs if r.name == args.run]
         if not matching:
-            print(f"Run '{args.run}' not found.", file=sys.stderr)
+            print(f"Run '{args.run}' not found.")
             sys.exit(1)
         run_dir = matching[0]
     else:
@@ -107,9 +107,7 @@ def cmd_companions(args: argparse.Namespace) -> None:
     console.setFormatter(logging.Formatter("%(levelname)-5s  %(message)s"))
     logger.addHandler(console)
 
-    file_handler = logging.FileHandler(
-        run_dir / "companions.log", encoding="utf-8"
-    )
+    file_handler = logging.FileHandler(run_dir / "companions.log", encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(
         logging.Formatter("%(asctime)s %(levelname)-5s %(message)s")
