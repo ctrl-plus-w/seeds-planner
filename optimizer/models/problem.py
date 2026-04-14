@@ -44,11 +44,14 @@ class CompanionPlantingProblem(ElementwiseProblem):
         )
         utilization = total_assigned / total_plot_area if total_plot_area > 0 else 0.0
 
+        n_unassigned = int((assignments == 0).sum())
+        utilization_score = utilization - 0.01 * n_unassigned / max(ctx.n_plants, 1)
+
         g = []
         for k in range(1, ctx.n_plots + 1):
             area_in_plot = sum(ctx.plant_areas[i] for i in plots.get(k, []))
             g.append(area_in_plot - ctx.plot_areas[k - 1])
         g.append(float(antag_violations))
 
-        out["F"] = [-compat_score, -utilization]
+        out["F"] = [-compat_score, -utilization_score]
         out["G"] = g
