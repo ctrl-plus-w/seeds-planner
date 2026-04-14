@@ -19,6 +19,8 @@ def get_model(name: str) -> type[OptimizerModel]:
     return MODEL_REGISTRY[name]
 
 
-from optimizer.models.nsga2 import NSGA2Model  # noqa: E402
+from optimizer.models.nsga2_initial import NSGA2InitialModel  # noqa: E402
+from optimizer.models.nsga2_quantity import NSGA2QuantityModel  # noqa: E402
 
-register_model(NSGA2Model)
+register_model(NSGA2InitialModel)
+register_model(NSGA2QuantityModel)

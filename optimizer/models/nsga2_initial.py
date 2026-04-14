@@ -12,33 +12,24 @@ from pymoo.optimize import minimize
 
 from optimizer.context import ProblemContext
 from optimizer.models.base import OptimizerModel
-from optimizer.result import OptimizationResult, Solution
 from optimizer.models.problem import CompanionPlantingProblem
+from optimizer.result import OptimizationResult, Solution
 
 
-class NSGA2Model(OptimizerModel):
-    name = "nsga2"
+class NSGA2InitialModel(OptimizerModel):
+    """Baseline NSGA-II: random integer sampling, no domain-aware repair.
+
+    Kept for comparison against `nsga2-quantity`. Tends to leave parcels
+    underfilled on tight instances because nothing pushes the search toward
+    dense layouts."""
+
+    name = "nsga2-initial"
 
     @staticmethod
     def add_arguments(parser: argparse.ArgumentParser) -> None:
-        parser.add_argument(
-            "--pop-size",
-            type=int,
-            default=100,
-            help="Population size for NSGA-II (default: 100)",
-        )
-        parser.add_argument(
-            "--n-gen",
-            type=int,
-            default=200,
-            help="Number of generations (default: 200)",
-        )
-        parser.add_argument(
-            "--seed",
-            type=int,
-            default=None,
-            help="Random seed for reproducibility",
-        )
+        parser.add_argument("--pop-size", type=int, default=100)
+        parser.add_argument("--n-gen", type=int, default=200)
+        parser.add_argument("--seed", type=int, default=None)
 
     def __init__(self, ctx: ProblemContext, args: argparse.Namespace) -> None:
         self.ctx = ctx
@@ -68,12 +59,12 @@ class NSGA2Model(OptimizerModel):
         if res.F is None or len(res.F) == 0:
             return OptimizationResult(solutions=[])
 
-        solutions = []
-        for i in range(len(res.F)):
-            solutions.append(
+        return OptimizationResult(
+            solutions=[
                 Solution(
                     assignments=np.round(res.X[i]).astype(int),
                     objectives=res.F[i],
                 )
-            )
-        return OptimizationResult(solutions=solutions)
+                for i in range(len(res.F))
+            ]
+        )

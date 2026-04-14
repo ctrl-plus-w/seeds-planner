@@ -11,6 +11,8 @@ dependencies = [
     "pymoo>=0.6",
     "numpy>=1.24",
     "black>=26.3.1",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
 ]
 
 [build-system]
@@ -18,8 +20,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["scraper", "optimizer"]
+packages = ["scraper", "optimizer", "api"]
 
 [project.scripts]
 seeds-scraper = "scraper.cli:main"
 seeds-optimizer = "optimizer.cli:main"
+seeds-api = "api.main:run"
