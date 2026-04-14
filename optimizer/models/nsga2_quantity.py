@@ -17,40 +17,48 @@ from optimizer.models.problem import CompanionPlantingProblem
 from optimizer.result import OptimizationResult, Solution
 
 
-def _canonicalize(x: np.ndarray) -> tuple[int, ...]:
-    """Renumber plot IDs by order of first non-zero appearance.
+def _canonicalize(x: np.ndarray, plant_slugs: list[str]) -> tuple:
+    """Build a canonical key invariant to plot-label permutation AND
+    instance swaps of the same plant type.
 
-    E.g. [2, 0, 3, 2, 1] -> (1, 0, 2, 1, 3).
-    This ensures that two solutions differing only by plot-label permutation
-    map to the same canonical form.
+    Returns a sorted tuple of (sorted slug bag per plot, sorted unassigned bag).
+    Two solutions that put the same *types* of plants in the same plots
+    always produce the same key.
     """
-    mapping: dict[int, int] = {0: 0}
-    next_id = 1
-    out = []
-    for v in np.round(x).astype(int):
-        v = int(v)
-        if v not in mapping:
-            mapping[v] = next_id
-            next_id += 1
-        out.append(mapping[v])
-    return tuple(out)
+    assignments = np.round(x).astype(int)
+    plots: dict[int, list[str]] = {}
+    unassigned: list[str] = []
+    for i, plot_id in enumerate(assignments):
+        plot_id = int(plot_id)
+        if plot_id > 0:
+            plots.setdefault(plot_id, []).append(plant_slugs[i])
+        else:
+            unassigned.append(plant_slugs[i])
+    plot_bags = tuple(sorted(tuple(sorted(slugs)) for slugs in plots.values()))
+    return plot_bags, tuple(sorted(unassigned))
 
 
 class CanonicalDuplicateElimination(DuplicateElimination):
-    """Treat solutions that are plot-label permutations as duplicates.
+    """Treat visually identical solutions as duplicates.
 
+    Two solutions are duplicates if they place the same plant *types* in the
+    same plots, even when the underlying instance indices differ.
     Uses hash-based O(pop) dedup instead of pairwise O(pop²) comparison.
     """
 
+    def __init__(self, plant_slugs: list[str]) -> None:
+        super().__init__()
+        self.plant_slugs = plant_slugs
+
     def _do(self, pop, other, is_duplicate):
-        seen: set[tuple[int, ...]] = set()
+        seen: set[tuple] = set()
 
         if other is not None:
             for ind in other:
-                seen.add(_canonicalize(ind.X))
+                seen.add(_canonicalize(ind.X, self.plant_slugs))
 
         for i, ind in enumerate(pop):
-            key = _canonicalize(ind.X)
+            key = _canonicalize(ind.X, self.plant_slugs)
             if key in seen:
                 is_duplicate[i] = True
             else:
@@ -85,7 +93,7 @@ class NSGA2QuantityModel(OptimizerModel):
             sampling=IntegerRandomSampling(),
             crossover=SBX(prob=0.9, eta=3, vtype=float, repair=RoundingRepair()),
             mutation=PM(eta=3, vtype=float, repair=RoundingRepair()),
-            eliminate_duplicates=CanonicalDuplicateElimination(),
+            eliminate_duplicates=CanonicalDuplicateElimination(self.ctx.plant_slugs),
         )
 
         res = minimize(
@@ -99,11 +107,11 @@ class NSGA2QuantityModel(OptimizerModel):
         if res.F is None or len(res.F) == 0:
             return OptimizationResult(solutions=[])
 
-        seen: set[tuple[int, ...]] = set()
+        seen: set[tuple] = set()
         solutions: list[Solution] = []
         for i in range(len(res.F)):
             assignments = np.round(res.X[i]).astype(int)
-            key = _canonicalize(assignments)
+            key = _canonicalize(assignments, self.ctx.plant_slugs)
             if key in seen:
                 continue
             seen.add(key)
