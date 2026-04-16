@@ -1,17 +1,20 @@
-import { useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Sprout, Loader2 } from "lucide-react"
 import { fetchPlants, postOptimize } from "@/api/client"
 import type { OptimizeResponse, PlantQuantity } from "@/api/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { PlantPicker } from "@/components/PlantPicker"
 import { PlotBuilder } from "@/components/PlotBuilder"
 import { ResultsView } from "@/components/ResultsView"
+import { useLocalStorage } from "@/hooks/useLocalStorage"
 
 export function OptimizerPage() {
-  const [selected, setSelected] = useState<PlantQuantity[]>([])
-  const [plotAreas, setPlotAreas] = useState<number[]>([6, 8])
+  const [selected, setSelected] = useLocalStorage<PlantQuantity[]>("seeds-planner:plants", [])
+  const [plotAreas, setPlotAreas] = useLocalStorage<number[]>("seeds-planner:plots", [6, 8])
+  const [popSize, setPopSize] = useLocalStorage<number>("seeds-planner:pop-size", 200)
+  const [nGen, setNGen] = useLocalStorage<number>("seeds-planner:n-gen", 400)
 
   const plantsQuery = useQuery({
     queryKey: ["plants"],
@@ -24,6 +27,8 @@ export function OptimizerPage() {
       postOptimize({
         plants: selected,
         plot_areas: plotAreas,
+        pop_size: popSize,
+        n_gen: nGen,
       }),
   })
 
@@ -102,6 +107,47 @@ export function OptimizerPage() {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {plantsQuery.data && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Paramètres</CardTitle>
+              <CardDescription>Réglages de l'algorithme NSGA-II</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-6">
+                <label className="flex items-center gap-3">
+                  <span className="text-sm text-stone-700">Taille de population</span>
+                  <Input
+                    type="number"
+                    min={10}
+                    step={10}
+                    value={popSize}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10)
+                      if (!isNaN(n) && n >= 10) setPopSize(n)
+                    }}
+                    className="w-24"
+                  />
+                </label>
+                <label className="flex items-center gap-3">
+                  <span className="text-sm text-stone-700">Générations</span>
+                  <Input
+                    type="number"
+                    min={10}
+                    step={10}
+                    value={nGen}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10)
+                      if (!isNaN(n) && n >= 10) setNGen(n)
+                    }}
+                    className="w-24"
+                  />
+                </label>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {plantsQuery.data && (
