@@ -13,12 +13,9 @@ from pymoo.util.ref_dirs import get_reference_directions
 
 from optimizer.context import ProblemContext
 from optimizer.models.base import OptimizerModel
-from optimizer.models.nsga2_quantity import (
-    CanonicalDuplicateElimination,
-    _canonicalize,
-)
 from optimizer.models.problem import CompanionPlantingProblem
 from optimizer.result import OptimizationResult, Solution
+from optimizer.utils.deduplication import CanonicalDuplicateElimination, canonicalize
 
 
 class CTAEAModel(OptimizerModel):
@@ -79,7 +76,7 @@ class CTAEAModel(OptimizerModel):
         solutions: list[Solution] = []
         for i in range(len(res.F)):
             assignments = np.round(res.X[i]).astype(int)
-            key = _canonicalize(assignments, self.ctx.plant_slugs)
+            key = canonicalize(assignments, self.ctx.plant_slugs)
             if key in seen:
                 continue
             seen.add(key)
