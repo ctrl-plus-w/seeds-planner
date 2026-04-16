@@ -17,7 +17,7 @@ export interface PlantQuantity {
   quantity: number
 }
 
-export type ModelName = "nsga2" | "ctaea" | "cmopso"
+export type ModelName = "nsga2" | "nsga3" | "cmopso"
 
 export interface OptimizeRequest {
   plants: PlantQuantity[]

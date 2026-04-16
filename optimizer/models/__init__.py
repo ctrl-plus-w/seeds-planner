@@ -23,11 +23,11 @@ def get_model(name: str) -> type[OptimizerModel]:
 
 from optimizer.models.nsga2 import NSGA2Model  # noqa: E402
 from optimizer.models.cmopso import CMOPSOModel
-from optimizer.models.ctaea import CTAEAModel  # noqa: E402
+from optimizer.models.nsga3 import NSGA3Model  # noqa: E402
 from optimizer.models.pulp_model import PulpModel
 
 register_model(NSGA2Model)
 register_model(CMOPSOModel)
-register_model(CTAEAModel)
+register_model(NSGA3Model)
 
 register_model(PulpModel)

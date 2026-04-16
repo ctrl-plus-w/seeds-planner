@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-ModelName = Literal["nsga2", "ctaea", "cmopso"]
+ModelName = Literal["nsga2", "nsga3", "cmopso"]
 
 
 class PlantSummary(BaseModel):

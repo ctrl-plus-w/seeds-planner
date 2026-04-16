@@ -21,7 +21,7 @@ from optimizer.utils.fs import find_latest_run
 MODEL_DEFAULTS: dict[str, dict] = {
     "nsga2": {"pop_size": 200, "n_gen": 400},
     "cmopso": {"pop_size": 500, "n_gen": 300},
-    "ctaea": {"n_gen": 300, "n_partitions": 99},
+    "nsga3": {"n_gen": 300, "n_partitions": 99, "pop_size": 100},
 }
 
 

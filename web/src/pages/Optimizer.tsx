@@ -15,13 +15,13 @@ import { useStreamingOptimize } from "@/hooks/useStreamingOptimize"
 
 const MODEL_LABELS: Record<ModelName, string> = {
   nsga2: "NSGA-II",
-  ctaea: "C-TAEA",
+  nsga3: "NSGA-III",
   cmopso: "CMOPSO",
 }
 
 const MODEL_DESCRIPTIONS: Record<ModelName, string> = {
   nsga2: "Algorithme génétique multi-objectif avec tri non-dominé",
-  ctaea: "Algorithme à décomposition avec deux archives (contraintes)",
+  nsga3: "Algorithme à décomposition par directions de référence (contraintes)",
   cmopso: "Optimisation par essaim de particules multi-objectif sous contraintes",
 }
 
@@ -134,13 +134,27 @@ export function OptimizerPage() {
                     className="w-48"
                   >
                     <option value="nsga2">NSGA-II</option>
-                    <option value="ctaea">C-TAEA</option>
+                    <option value="nsga3">NSGA-III</option>
                     <option value="cmopso">CMOPSO</option>
                   </Select>
                 </label>
                 <p className="text-xs text-stone-500">{MODEL_DESCRIPTIONS[model]}</p>
                 <div className="flex flex-wrap gap-6">
-                  {model === "ctaea" ? (
+                  <label className="flex items-center gap-3">
+                    <span className="text-sm text-stone-700">Taille de population</span>
+                    <Input
+                      type="number"
+                      min={10}
+                      step={10}
+                      value={popSize}
+                      onChange={(e) => {
+                        const n = parseInt(e.target.value, 10)
+                        if (!isNaN(n) && n >= 10) setPopSize(n)
+                      }}
+                      className="w-24"
+                    />
+                  </label>
+                  {model === "nsga3" && (
                     <label className="flex items-center gap-3">
                       <span className="text-sm text-stone-700">Partitions (directions de réf.)</span>
                       <Input
@@ -151,21 +165,6 @@ export function OptimizerPage() {
                         onChange={(e) => {
                           const n = parseInt(e.target.value, 10)
                           if (!isNaN(n) && n >= 3) setNPartitions(n)
-                        }}
-                        className="w-24"
-                      />
-                    </label>
-                  ) : (
-                    <label className="flex items-center gap-3">
-                      <span className="text-sm text-stone-700">Taille de population</span>
-                      <Input
-                        type="number"
-                        min={10}
-                        step={10}
-                        value={popSize}
-                        onChange={(e) => {
-                          const n = parseInt(e.target.value, 10)
-                          if (!isNaN(n) && n >= 10) setPopSize(n)
                         }}
                         className="w-24"
                       />
@@ -199,9 +198,9 @@ export function OptimizerPage() {
                   plants: selected,
                   plot_areas: plotAreas,
                   model,
-                  pop_size: model !== "ctaea" ? popSize : undefined,
+                  pop_size: popSize,
                   n_gen: nGen,
-                  n_partitions: model === "ctaea" ? nPartitions : undefined,
+                  n_partitions: model === "nsga3" ? nPartitions : undefined,
                 })
               }
               disabled={!canRun}

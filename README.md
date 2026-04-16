@@ -3,7 +3,7 @@
 Scrape plant data from [permapeople.org](https://permapeople.org) and optimize companion plant placement across garden plots. Ships as four services:
 
 - **Scraper** (`seeds-scraper`) — fetches plant data and companion relationships from permapeople.org
-- **Optimizer** (`seeds-optimizer`) — assigns plants to plots using multi-objective optimization (NSGA-II, C-TAEA, CMOPSO)
+- **Optimizer** (`seeds-optimizer`) — assigns plants to plots using multi-objective optimization (NSGA-II, NSGA-III, CMOPSO)
 - **HTTP API** (`seeds-api`) — FastAPI backend exposing `/plants`, `/optimize`, and `/optimize/stream`
 - **Web app** (`web/`) — React + Vite frontend to build plots, pick plants, and explore the Pareto front interactively
 - **Benchmark** (`seeds-benchmark`) — runs each optimizer N times and compares metrics
@@ -57,7 +57,7 @@ optimizer/
     base.py            OptimizerModel abstract base class
     problem.py         Shared pymoo Problem (compatibility + space utilization)
     nsga2.py           NSGA-II genetic algorithm
-    ctaea.py           C-TAEA decomposition-based algorithm
+    nsga3.py           NSGA-III reference-direction-based algorithm
     cmopso.py          Constrained multi-objective particle swarm
     __init__.py        Model registry
   classes/
@@ -138,7 +138,7 @@ uv run seeds-optimizer --plants "tomato:3,basil:2,carrot" --plots "6,8"
 uv run seeds-optimizer --plants "tomato:3,basil:2,carrot,pepper,lettuce:4,marigold:2" --plots "6,8,10" --pop-size 150 --n-gen 300 --seed 42 --n-seeds 3 --top 10
 
 # Use a different model
-uv run seeds-optimizer --plants "tomato:3,basil:2,carrot" --plots "6,8" --model ctaea
+uv run seeds-optimizer --plants "tomato:3,basil:2,carrot" --plots "6,8" --model nsga3
 ```
 
 ### Available models
@@ -146,7 +146,7 @@ uv run seeds-optimizer --plants "tomato:3,basil:2,carrot" --plots "6,8" --model 
 | Name | Description |
 |------|-------------|
 | `nsga2` | NSGA-II genetic algorithm with duplicate elimination and N-seed population initialization |
-| `ctaea` | C-TAEA decomposition-based algorithm with two archives (convergence + diversity), designed for constrained multi-objective optimization |
+| `nsga3` | NSGA-III reference-direction-based algorithm for constrained multi-objective optimization |
 | `cmopso` | Constrained multi-objective particle swarm optimization |
 
 ### Options
@@ -156,7 +156,7 @@ uv run seeds-optimizer --plants "tomato:3,basil:2,carrot" --plots "6,8" --model 
 | `-p`, `--plants` | Comma-separated plants with optional quantities (e.g. `tomato:3,basil:2,carrot`) | *required* |
 | `-k`, `--plots` | Comma-separated plot areas in m² | *required* |
 | `-d`, `--data-dir` | Path to a scraper run directory | latest run in `.out/` |
-| `--model` | Optimization model to use (`nsga2`, `ctaea`, `cmopso`) | `nsga2` |
+| `--model` | Optimization model to use (`nsga2`, `nsga3`, `cmopso`) | `nsga2` |
 | `--top` | Number of top solutions to display | `5` |
 
 #### NSGA-II options
@@ -168,10 +168,11 @@ uv run seeds-optimizer --plants "tomato:3,basil:2,carrot" --plots "6,8" --model 
 | `--seed` | Random seed for reproducibility | *none* |
 | `--n-seeds` | Number of diverse seeds to build the initial population | `1` |
 
-#### C-TAEA options
+#### NSGA-III options
 
 | Flag | Description | Default |
 |------|-------------|---------|
+| `--pop-size` | Population size | `100` |
 | `--n-partitions` | Number of reference direction partitions | `99` |
 | `--n-gen` | Number of generations | `400` |
 | `--seed` | Random seed for reproducibility | *none* |
@@ -238,7 +239,7 @@ Run each optimizer model multiple times and compare metrics (solution count, com
 ```bash
 uv run seeds-benchmark --plants "tomato:3,basil:2,carrot,pepper" --plots "6,8" --runs 5
 
-uv run seeds-benchmark --plants "tomato:3,basil:2,carrot" --plots "6,8,10" --models nsga2,ctaea --runs 10 --seed 0
+uv run seeds-benchmark --plants "tomato:3,basil:2,carrot" --plots "6,8,10" --models nsga2,nsga3 --runs 10 --seed 0
 ```
 
 | Flag | Description | Default |
