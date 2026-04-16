@@ -21,6 +21,8 @@ def get_model(name: str) -> type[OptimizerModel]:
 
 from optimizer.models.nsga2_initial import NSGA2InitialModel  # noqa: E402
 from optimizer.models.nsga2_quantity import NSGA2QuantityModel  # noqa: E402
+from optimizer.models.ctaea import CTAEAModel  # noqa: E402
 
 register_model(NSGA2InitialModel)
 register_model(NSGA2QuantityModel)
+register_model(CTAEAModel)
