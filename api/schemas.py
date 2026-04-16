@@ -28,6 +28,7 @@ class OptimizeRequest(BaseModel):
     pop_size: int = 200
     n_gen: int = 400
     seed: int | None = None
+    n_seeds: int = Field(1, ge=1)
     compat_weight: float = Field(0.5, ge=0.0, le=1.0)
 
 

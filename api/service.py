@@ -196,6 +196,7 @@ def run_optimization(req: OptimizeRequest) -> OptimizeResponse:
         pop_size=req.pop_size,
         n_gen=req.n_gen,
         seed=req.seed,
+        n_seeds=req.n_seeds,
     )
     model = model_cls(ctx, args)
     result = model.optimize()

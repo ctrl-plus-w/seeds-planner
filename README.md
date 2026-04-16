@@ -127,15 +127,18 @@ Plants listed earlier in `--plants` receive higher preference weights, so put yo
 # Basic — uses the latest scraper run and default NSGA-II settings
 uv run seeds-optimizer --plants "tomato,basil,carrot,pepper" --plots "6,8"
 
+# With quantities — place 3 tomatoes, 2 basil, 1 carrot
+uv run seeds-optimizer --plants "tomato:3,basil:2,carrot" --plots "6,8"
+
 # Specify a data directory and model parameters
 uv run seeds-optimizer \
-  --plants "tomato,basil,carrot,pepper,lettuce,marigold" \
+  --plants "tomato:3,basil:2,carrot,pepper,lettuce:4,marigold:2" \
   --plots "6,8,10" \
   --data-dir .out/run_2026-03-23_15-52-37 \
-  --model nsga2-initial \
   --pop-size 150 \
   --n-gen 300 \
   --seed 42 \
+  --n-seeds 3 \
   --top 10
 ```
 
@@ -149,7 +152,7 @@ uv run seeds-optimizer \
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-p`, `--plants` | Comma-separated plant names or slugs, in preference order | *required* |
+| `-p`, `--plants` | Comma-separated plants with optional quantities (e.g. `tomato:3,basil:2,carrot`) | *required* |
 | `-k`, `--plots` | Comma-separated plot areas in m² | *required* |
 | `-d`, `--data-dir` | Path to a scraper run directory | latest run in `.out/` |
 | `--model` | Optimization model to use (`nsga2`) | `nsga2` |
@@ -162,6 +165,7 @@ uv run seeds-optimizer \
 | `--pop-size` | Population size | `100` |
 | `--n-gen` | Number of generations | `200` |
 | `--seed` | Random seed for reproducibility | *none* |
+| `--n-seeds` | Number of diverse seeds to build the initial population | `1` |
 
 ### Output
 

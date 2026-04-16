@@ -110,7 +110,7 @@ def main() -> None:
         "-p",
         "--plants",
         required=True,
-        help="Comma-separated plant names or slugs, in preference order",
+        help="Comma-separated plant names or slugs with optional quantities (e.g. 'tomato:3,basil:2,carrot')",
     )
     parser.add_argument(
         "-k",
