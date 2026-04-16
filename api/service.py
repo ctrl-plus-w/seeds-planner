@@ -76,12 +76,7 @@ def _rank_solutions(result: OptimizationResult, compat_weight: float) -> list[in
         else:
             f_norm[:, col] = 0.0
 
-    placement_weight = (1.0 - compat_weight) / 2.0
-    scores = (
-        compat_weight * f_norm[:, 0]
-        + placement_weight * f_norm[:, 1]
-        + placement_weight * f_norm[:, 2]
-    )
+    scores = compat_weight * f_norm[:, 0] + (1.0 - compat_weight) * f_norm[:, 1]
     return list(np.argsort(scores))
 
 
@@ -150,19 +145,10 @@ def _build_solution_result(
     space_utilization = (
         (total_used_area / total_plot_area * 100.0) if total_plot_area > 0 else 0.0
     )
-    n_unassigned = len(unassigned_idx)
-    assigned_pct = (
-        ((ctx.n_plants - n_unassigned) / ctx.n_plants * 100.0)
-        if ctx.n_plants > 0
-        else 100.0
-    )
-
     return SolutionResult(
         rank=rank,
         compatibility=float(-objectives[0]),
         space_utilization=float(space_utilization),
-        unassigned_count=n_unassigned,
-        assigned_pct=float(assigned_pct),
         plots=plot_results,
         unassigned=unassigned_names,
     )

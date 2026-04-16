@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import type { OptimizeResponse, PlantInPlot, SolutionResult } from "@/api/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { GardenSvg } from "./GardenSvg"
-import { ParetoPlot3D } from "./ParetoPlot3D"
+import { ParetoPlot } from "./ParetoPlot"
 
 interface AggregatedPlant {
   slug: string
@@ -61,12 +61,10 @@ function rerankSolutions(
 
   const cN = normalize(solutions.map((s) => s.compatibility))
   const uN = normalize(solutions.map((s) => s.space_utilization))
-  const aN = normalize(solutions.map((s) => s.assigned_pct))
 
-  const placementW = (1 - compatWeight) / 2
   const scored = solutions.map((s, i) => ({
     sol: s,
-    score: compatWeight * cN[i] + placementW * uN[i] + placementW * aN[i],
+    score: compatWeight * cN[i] + (1 - compatWeight) * uN[i],
   }))
   scored.sort((a, b) => b.score - a.score)
   return scored.map((entry, i) => ({ ...entry.sol, rank: i + 1 }))
@@ -81,7 +79,7 @@ export function ResultsView({ result }: ResultsViewProps) {
   )
 
   const solutionKey = (s: SolutionResult) =>
-    `${s.compatibility.toFixed(4)}|${s.space_utilization.toFixed(4)}|${s.assigned_pct.toFixed(4)}`
+    `${s.compatibility.toFixed(4)}|${s.space_utilization.toFixed(4)}`
 
   const [selectedKey, setSelectedKey] = useState<string>(() =>
     ranked.length > 0 ? solutionKey(ranked[0]) : "",
@@ -151,7 +149,7 @@ export function ResultsView({ result }: ResultsViewProps) {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
-            <ParetoPlot3D
+            <ParetoPlot
               solutions={ranked}
               selectedRank={selected.rank}
               onSelect={selectByRank}
@@ -173,10 +171,7 @@ export function ResultsView({ result }: ResultsViewProps) {
                       <span className="font-mono text-stone-400 mr-2">#{s.rank}</span>
                       compat <span className="font-semibold">{s.compatibility.toFixed(2)}</span>
                       <span className="text-stone-400"> · </span>
-                      <span className="font-semibold">{s.space_utilization.toFixed(0)}%</span>
-                      <span className="text-stone-400"> · </span>
-                      <span className="font-semibold">{s.assigned_pct.toFixed(0)}%</span>
-                      <span className="text-stone-400"> placées</span>
+                      <span className="font-semibold">{s.space_utilization.toFixed(0)}%</span> espace
                     </button>
                   </li>
                 )
@@ -201,12 +196,6 @@ export function ResultsView({ result }: ResultsViewProps) {
                 <span className="text-stone-500">Espace utilisé</span>{" "}
                 <span className="font-semibold text-stone-900">
                   {selected.space_utilization.toFixed(0)}%
-                </span>
-              </span>
-              <span>
-                <span className="text-stone-500">Plantes placées</span>{" "}
-                <span className="font-semibold text-stone-900">
-                  {selected.assigned_pct.toFixed(0)}%
                 </span>
               </span>
             </div>

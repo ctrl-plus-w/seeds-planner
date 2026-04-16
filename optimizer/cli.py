@@ -29,11 +29,10 @@ def _format_solution(
 
     compat = -objectives[0]
     utilization = -objectives[1] * 100
-    n_unassigned = int(objectives[2])
 
     lines = [
         f"=== Solution {idx}/{total} ===",
-        f"Compatibility: {compat:.1f} | Space used: {utilization:.1f}% | Unassigned: {n_unassigned}",
+        f"Compatibility: {compat:.1f} | Space used: {utilization:.1f}%",
         "",
     ]
 
@@ -96,7 +95,7 @@ def _rank_solutions(result: OptimizationResult, top: int) -> list[int]:
         else:
             f_norm[:, col] = 0.0
 
-    scores = 0.6 * f_norm[:, 0] + 0.2 * f_norm[:, 1] + 0.2 * f_norm[:, 2]
+    scores = 0.6 * f_norm[:, 0] + 0.4 * f_norm[:, 1]
     order = np.argsort(scores)
     return list(order[: min(top, len(order))])
 

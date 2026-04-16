@@ -45,8 +45,6 @@ export interface SolutionResult {
   rank: number
   compatibility: number
   space_utilization: number
-  unassigned_count: number
-  assigned_pct: number
   plots: PlotResult[]
   unassigned: string[]
 }
