@@ -66,7 +66,7 @@ class NSGA2Model(OptimizerModel):
             sampling=sampling,
             crossover=SBX(prob=0.9, eta=3, vtype=float, repair=RoundingRepair()),
             mutation=PM(eta=3, vtype=float, repair=RoundingRepair()),
-            eliminate_duplicates=CanonicalDuplicateElimination(self.ctx.plant_slugs),
+            eliminate_duplicates=CanonicalDuplicateElimination(self.ctx.plant_slugs, self.ctx.n_plots),
         )
 
         res = minimize(
@@ -86,7 +86,7 @@ class NSGA2Model(OptimizerModel):
         solutions: list[Solution] = []
         for i in range(len(res.F)):
             assignments = np.round(res.X[i]).astype(int)
-            key = canonicalize(assignments, self.ctx.plant_slugs)
+            key = canonicalize(assignments, self.ctx.plant_slugs, self.ctx.n_plots)
             if key in seen:
                 continue
             seen.add(key)
