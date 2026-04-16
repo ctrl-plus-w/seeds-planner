@@ -27,3 +27,4 @@ packages = ["scraper", "optimizer", "api"]
 seeds-scraper = "scraper.cli:main"
 seeds-optimizer = "optimizer.cli:main"
 seeds-api = "api.main:run"
+seeds-benchmark = "optimizer.benchmark:main"
