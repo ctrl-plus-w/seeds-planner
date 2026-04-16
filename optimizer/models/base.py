@@ -20,7 +20,7 @@ class OptimizerModel(ABC):
     Subclasses must implement ``_build_problem_and_algorithm`` and
     ``add_arguments``.  ``optimize``, ``optimize_streaming`` and
     ``_postprocess_results`` have concrete default implementations that
-    can be overridden when needed (e.g. CMOPSO skips dedup).
+    can be overridden when needed.
     """
 
     name: str

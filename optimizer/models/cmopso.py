@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 
-import numpy as np
 from pymoo.algorithms.moo.cmopso import CMOPSO
 from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.operators.sampling.rnd import IntegerRandomSampling
@@ -10,8 +9,6 @@ from pymoo.operators.sampling.rnd import IntegerRandomSampling
 from optimizer.context import ProblemContext
 from optimizer.models.base import OptimizerModel
 from optimizer.models.problem import CompanionPlantingProblem
-from optimizer.result import Solution
-
 
 class CMOPSOModel(OptimizerModel):
     name = "cmopso"
@@ -49,15 +46,3 @@ class CMOPSOModel(OptimizerModel):
             repair=RoundingRepair(),
         )
         return problem, algorithm
-
-    def _postprocess_results(self, res) -> list[Solution]:
-        """CMOPSO does not deduplicate results."""
-        if res.F is None or len(res.F) == 0:
-            return []
-        return [
-            Solution(
-                assignments=np.round(res.X[i]).astype(int),
-                objectives=res.F[i],
-            )
-            for i in range(len(res.F))
-        ]
