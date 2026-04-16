@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -91,33 +93,57 @@ def _run_single(
     )
 
 
+def _log_run(model_name: str, n_runs: int, metrics: RunMetrics) -> None:
+    print(
+        f"[{model_name:<7}] run {metrics.run_index + 1}/{n_runs}"
+        f"  seed={metrics.seed}"
+        f"  solutions={metrics.n_solutions}"
+        f"  compat={metrics.best_compatibility:.2f}"
+        f"  util={metrics.best_utilization * 100:.1f}%"
+        f"  hv={metrics.final_hypervolume:.3f}"
+        f"  time={metrics.execution_time:.1f}s",
+        flush=True,
+    )
+
+
 def _benchmark_model(
     model_name: str,
     model_cls: type,
     ctx: ProblemContext,
     n_runs: int,
     base_seed: int,
+    max_workers: int = 1,
 ) -> list[RunMetrics]:
     runs: list[RunMetrics] = []
-    for i in range(n_runs):
-        seed = base_seed + i
-        try:
-            metrics = _run_single(model_name, model_cls, ctx, i, seed)
-        except Exception as e:
-            print(f"[{model_name:<7}] run {i + 1}/{n_runs}  seed={seed}  ERROR: {e}")
-            continue
 
-        print(
-            f"[{model_name:<7}] run {i + 1}/{n_runs}"
-            f"  seed={seed}"
-            f"  solutions={metrics.n_solutions}"
-            f"  compat={metrics.best_compatibility:.2f}"
-            f"  util={metrics.best_utilization * 100:.1f}%"
-            f"  hv={metrics.final_hypervolume:.3f}"
-            f"  time={metrics.execution_time:.1f}s",
-            flush=True,
-        )
-        runs.append(metrics)
+    if max_workers <= 1:
+        for i in range(n_runs):
+            seed = base_seed + i
+            try:
+                metrics = _run_single(model_name, model_cls, ctx, i, seed)
+            except Exception as e:
+                print(f"[{model_name:<7}] run {i + 1}/{n_runs}  seed={seed}  ERROR: {e}")
+                continue
+            _log_run(model_name, n_runs, metrics)
+            runs.append(metrics)
+        return runs
+
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(_run_single, model_name, model_cls, ctx, i, base_seed + i): i
+            for i in range(n_runs)
+        }
+        for future in as_completed(futures):
+            i = futures[future]
+            try:
+                metrics = future.result()
+            except Exception as e:
+                print(f"[{model_name:<7}] run {i + 1}/{n_runs}  seed={base_seed + i}  ERROR: {e}")
+                continue
+            _log_run(model_name, n_runs, metrics)
+            runs.append(metrics)
+
+    runs.sort(key=lambda r: r.run_index)
     return runs
 
 
@@ -242,6 +268,12 @@ def main() -> None:
         help="Base random seed; run i gets seed+i (default: 42)",
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=os.cpu_count() or 1,
+        help="Max parallel processes per model (default: number of CPUs)",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=Path("benchmark_results.json"),
@@ -293,7 +325,8 @@ def main() -> None:
     )
     print(f"Plot areas: {', '.join(f'{a:.1f} m^2' for a in plot_areas)}")
     print(f"Models: {', '.join(model_names)}")
-    print(f"Base seed: {args.seed}\n")
+    print(f"Base seed: {args.seed}")
+    print(f"Workers: {args.workers}\n")
 
     ctx = ProblemContext.build(plant_slugs, plot_areas, garden)
 
@@ -302,7 +335,7 @@ def main() -> None:
 
     for model_name in model_names:
         model_cls = get_model(model_name)
-        runs = _benchmark_model(model_name, model_cls, ctx, args.runs, args.seed)
+        runs = _benchmark_model(model_name, model_cls, ctx, args.runs, args.seed, args.workers)
         all_runs[model_name] = runs
         summaries[model_name] = _compute_summary(runs)
         print()
