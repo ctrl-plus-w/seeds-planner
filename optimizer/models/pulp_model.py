@@ -9,30 +9,30 @@ from optimizer.result import OptimizationResult, Solution
 
 
 class PulpModel(OptimizerModel):
-    name = 'pulp'
+    name = "pulp"
 
     @staticmethod
     def add_arguments(parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
-            '--plant-bonus',
+            "--plant-bonus",
             type=float,
             default=0.5,
-            help='Plant bonus added by plant sharing the plot(default: 0.5)',
+            help="Plant bonus added by plant sharing the plot(default: 0.5)",
         )
         parser.add_argument(
-            '--plants-malus',
+            "--plants-malus",
             type=float,
             default=0.5,
-            help='Plant malus added by plant sharing the plot(default: 0.5)',
+            help="Plant malus added by plant sharing the plot(default: 0.5)",
         )
         parser.add_argument(
-            '--timer-limit',
+            "--timer-limit",
             type=int,
             default=60,
-            help='Time limit in seconds (default: 60)',
+            help="Time limit in seconds (default: 60)",
         )
-        parser.add_argument('--n-gen', type=int, default=0)
-        parser.add_argument('--seed', type=int, default=None)
+        parser.add_argument("--n-gen", type=int, default=0)
+        parser.add_argument("--seed", type=int, default=None)
 
     def __init__(self, ctx: ProblemContext, args: argparse.Namespace) -> None:
         self.ctx = ctx
@@ -40,12 +40,11 @@ class PulpModel(OptimizerModel):
         self.plants_malus = args.plants_malus
         self.timer_limit = args.timer_limit
 
-        self.n_gen = getattr(args, 'n_gen', 0)
-        self.seed = getattr(args, 'seed', None)
+        self.n_gen = getattr(args, "n_gen", 0)
+        self.seed = getattr(args, "seed", None)
 
     def _build_problem_and_algorithm(self):
         raise NotImplementedError("Pulp utilise sa propre méthode d'optimisation")
-
 
     def build_model(self) -> tuple[pulp.LpProblem, dict]:
         ctx = self.ctx
@@ -55,30 +54,31 @@ class PulpModel(OptimizerModel):
         problem = pulp.LpProblem(self.name, pulp.LpMaximize)
 
         x = {
-            (i, p): pulp.LpVariable(f"x_{i}_{p}", cat='Binary')
+            (i, p): pulp.LpVariable(f"x_{i}_{p}", cat="Binary")
             for i in range(n_plants)
             for p in range(n_plots)
         }
 
-        #Contrainte 1 plante dans 1 parcelle
+        # Contrainte 1 plante dans 1 parcelle
         for i in range(n_plants):
             problem += pulp.lpSum(x[i, p] for p in range(n_plots)) <= 1
 
-        #Contrainte 2 pas plus de plantes que la capacité d'une parcelle
+        # Contrainte 2 pas plus de plantes que la capacité d'une parcelle
         for p in range(n_plots):
             problem += (
-                pulp.lpSum(ctx.plant_areas[i] * x[i, p] for i in range(n_plants)) <= ctx.plot_areas[p]
+                pulp.lpSum(ctx.plant_areas[i] * x[i, p] for i in range(n_plants))
+                <= ctx.plot_areas[p]
             )
 
-        #Contrainte pour ne pas autoriser des plantes antagonistes dans le même plot.
-        for (i, j) in ctx.antagonist_index_pairs:
+        # Contrainte pour ne pas autoriser des plantes antagonistes dans le même plot.
+        for i, j in ctx.antagonist_index_pairs:
             for p in range(n_plots):
                 problem += x[i, p] + x[j, p] <= 1, f"antag_{i}_{j}_{p}"
 
         all_pairs = ctx.companion_index_pairs
         z: dict[tuple[int, int, int], pulp.LpVariable] = {}
 
-        for (i, j) in all_pairs:
+        for i, j in all_pairs:
             for p in range(n_plots):
                 var = pulp.LpVariable(f"z_{i}_{j}_{p}", cat="Binary")
                 z[i, j, p] = var
@@ -87,9 +87,7 @@ class PulpModel(OptimizerModel):
                 problem += var >= x[i, p] + x[j, p] - 1, f"z_lb_{i}_{j}_{p}"
 
         plants_planted = pulp.lpSum(
-            x[i, p]
-            for i in range(n_plants)
-            for p in range(n_plots)
+            x[i, p] for i in range(n_plants) for p in range(n_plots)
         )
 
         companion_score = pulp.lpSum(
@@ -128,9 +126,7 @@ class PulpModel(OptimizerModel):
 
         total_area = float(ctx.plot_areas.sum())
         used_area = sum(
-            ctx.plant_areas[i]
-            for i in range(n_plants)
-            if assignments[i] > 0
+            ctx.plant_areas[i] for i in range(n_plants) if assignments[i] > 0
         )
         utilization = (used_area / total_area) if total_area > 0 else 0.0
         objectives = np.array([-obj_value, -utilization])
