@@ -57,6 +57,9 @@ class NSGA2Model(OptimizerModel):
         if res.F is None or len(res.F) == 0:
             return OptimizationResult(solutions=[])
 
+        # Second dedup pass: the first pass (CanonicalDuplicateElimination) prevents
+        # population waste during evolution, but np.round() below can map distinct
+        # float solutions to the same integer assignment, creating new duplicates.
         seen: set[tuple] = set()
         solutions: list[Solution] = []
         for i in range(len(res.F)):

@@ -143,8 +143,7 @@ uv run seeds-optimizer \
 
 | Name | Description |
 |------|-------------|
-| `nsga2-initial` | One decision variable per plant slug — the original formulation |
-| `nsga2-quantity` | One decision variable per plant unit (quantities are expanded up-front). Duplicate solutions (identical assignment tuples) are filtered out in post-processing to avoid returning the same layout multiple times |
+| `nsga2` | One decision variable per plant unit (quantities are expanded up-front). Duplicate solutions (identical assignment tuples) are filtered out in post-processing to avoid returning the same layout multiple times |
 
 ### Options
 
@@ -153,7 +152,7 @@ uv run seeds-optimizer \
 | `-p`, `--plants` | Comma-separated plant names or slugs, in preference order | *required* |
 | `-k`, `--plots` | Comma-separated plot areas in m² | *required* |
 | `-d`, `--data-dir` | Path to a scraper run directory | latest run in `.out/` |
-| `--model` | Optimization model to use (`nsga2-initial`, `nsga2-quantity`) | `nsga2-initial` |
+| `--model` | Optimization model to use (`nsga2`) | `nsga2` |
 | `--top` | Number of top solutions to display | `5` |
 
 #### NSGA-II options

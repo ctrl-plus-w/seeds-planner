@@ -15,7 +15,7 @@ class CompanionPlantingProblem(ElementwiseProblem):
         self.ctx = ctx
         super().__init__(
             n_var=ctx.n_plants,
-            n_obj=2,
+            n_obj=3,
             n_ieq_constr=ctx.n_plots + 1,
             xl=np.zeros(ctx.n_plants),
             xu=np.full(ctx.n_plants, ctx.n_plots),
@@ -45,7 +45,6 @@ class CompanionPlantingProblem(ElementwiseProblem):
         utilization = total_assigned / total_plot_area if total_plot_area > 0 else 0.0
 
         n_unassigned = int((assignments == 0).sum())
-        utilization_score = utilization - 0.01 * n_unassigned / max(ctx.n_plants, 1)
 
         g = []
         for k in range(1, ctx.n_plots + 1):
@@ -53,5 +52,5 @@ class CompanionPlantingProblem(ElementwiseProblem):
             g.append(area_in_plot - ctx.plot_areas[k - 1])
         g.append(float(antag_violations))
 
-        out["F"] = [-compat_score, -utilization_score]
+        out["F"] = [-compat_score, -utilization, n_unassigned]
         out["G"] = g

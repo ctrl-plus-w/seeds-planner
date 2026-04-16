@@ -76,7 +76,12 @@ def _rank_solutions(result: OptimizationResult, compat_weight: float) -> list[in
         else:
             f_norm[:, col] = 0.0
 
-    scores = compat_weight * f_norm[:, 0] + (1.0 - compat_weight) * f_norm[:, 1]
+    placement_weight = (1.0 - compat_weight) / 2.0
+    scores = (
+        compat_weight * f_norm[:, 0]
+        + placement_weight * f_norm[:, 1]
+        + placement_weight * f_norm[:, 2]
+    )
     return list(np.argsort(scores))
 
 
@@ -116,7 +121,9 @@ def _build_solution_result(
                     continue
                 pair = (min(i, j), max(i, j))
                 if pair in ctx.companion_index_pairs:
-                    companions_here.append(garden.plants_by_slug[ctx.plant_slugs[j]].name)
+                    companions_here.append(
+                        garden.plants_by_slug[ctx.plant_slugs[j]].name
+                    )
             plant_entries.append(
                 PlantInPlot(
                     slug=info.slug,
@@ -136,14 +143,26 @@ def _build_solution_result(
             )
         )
 
-    unassigned_names = [garden.plants_by_slug[ctx.plant_slugs[i]].name for i in unassigned_idx]
+    unassigned_names = [
+        garden.plants_by_slug[ctx.plant_slugs[i]].name for i in unassigned_idx
+    ]
 
-    space_utilization = (total_used_area / total_plot_area * 100.0) if total_plot_area > 0 else 0.0
+    space_utilization = (
+        (total_used_area / total_plot_area * 100.0) if total_plot_area > 0 else 0.0
+    )
+    n_unassigned = len(unassigned_idx)
+    assigned_pct = (
+        ((ctx.n_plants - n_unassigned) / ctx.n_plants * 100.0)
+        if ctx.n_plants > 0
+        else 100.0
+    )
 
     return SolutionResult(
         rank=rank,
         compatibility=float(-objectives[0]),
         space_utilization=float(space_utilization),
+        unassigned_count=n_unassigned,
+        assigned_pct=float(assigned_pct),
         plots=plot_results,
         unassigned=unassigned_names,
     )
@@ -164,13 +183,15 @@ def run_optimization(req: OptimizeRequest) -> OptimizeResponse:
         expanded_slugs.extend([entry.slug] * entry.quantity)
 
     if len(expanded_slugs) < 2:
-        raise ValueError("Need at least 2 plant instances to optimize (sum of quantities)")
+        raise ValueError(
+            "Need at least 2 plant instances to optimize (sum of quantities)"
+        )
     if not req.plot_areas or any(a <= 0 for a in req.plot_areas):
         raise ValueError("All plot areas must be positive numbers")
 
     ctx = ProblemContext.build(expanded_slugs, req.plot_areas, garden)
 
-    model_cls = get_model("nsga2-quantity")
+    model_cls = get_model("nsga2")
     args = argparse.Namespace(
         pop_size=req.pop_size,
         n_gen=req.n_gen,

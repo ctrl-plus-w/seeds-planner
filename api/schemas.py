@@ -50,6 +50,8 @@ class SolutionResult(BaseModel):
     rank: int
     compatibility: float
     space_utilization: float
+    unassigned_count: int
+    assigned_pct: float
     plots: list[PlotResult]
     unassigned: list[str]
 
