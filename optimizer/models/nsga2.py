@@ -1,22 +1,18 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Generator
 
 import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
-from pymoo.indicators.hv import HV
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.operators.sampling.rnd import IntegerRandomSampling
-from pymoo.optimize import minimize
 
 from optimizer.context import ProblemContext
 from optimizer.models.base import OptimizerModel
 from optimizer.models.problem import CompanionPlantingProblem
-from optimizer.result import OptimizationResult, Solution
-from optimizer.utils.deduplication import CanonicalDuplicateElimination, canonicalize
+from optimizer.utils.deduplication import CanonicalDuplicateElimination
 
 
 class NSGA2Model(OptimizerModel):
@@ -38,10 +34,8 @@ class NSGA2Model(OptimizerModel):
         )
 
     def __init__(self, ctx: ProblemContext, args: argparse.Namespace) -> None:
-        self.ctx = ctx
+        super().__init__(ctx, args)
         self.pop_size = args.pop_size
-        self.n_gen = args.n_gen
-        self.seed = args.seed
         self.n_seeds = args.n_seeds
 
     def _build_initial_population(
@@ -58,82 +52,14 @@ class NSGA2Model(OptimizerModel):
         ]
         return np.vstack(parts)
 
-    def _build_algorithm(
-        self, problem: CompanionPlantingProblem
-    ) -> NSGA2:
+    def _build_problem_and_algorithm(self) -> tuple[CompanionPlantingProblem, NSGA2]:
+        problem = CompanionPlantingProblem(self.ctx)
         sampling = self._build_initial_population(problem)
-        return NSGA2(
+        algorithm = NSGA2(
             pop_size=self.pop_size,
             sampling=sampling,
             crossover=SBX(prob=0.9, eta=3, vtype=float, repair=RoundingRepair()),
             mutation=PM(eta=3, vtype=float, repair=RoundingRepair()),
             eliminate_duplicates=CanonicalDuplicateElimination(self.ctx.plant_slugs, self.ctx.n_plots),
         )
-
-    @staticmethod
-    def _dedup_results(
-        res, plant_slugs: list[str], n_plots: int
-    ) -> list[Solution]:
-        if res.F is None or len(res.F) == 0:
-            return []
-        seen: set[tuple] = set()
-        solutions: list[Solution] = []
-        for i in range(len(res.F)):
-            assignments = np.round(res.X[i]).astype(int)
-            key = canonicalize(assignments, plant_slugs, n_plots)
-            if key in seen:
-                continue
-            seen.add(key)
-            solutions.append(Solution(assignments=assignments, objectives=res.F[i]))
-        return solutions
-
-    def optimize(self) -> OptimizationResult:
-        problem = CompanionPlantingProblem(self.ctx)
-        algorithm = self._build_algorithm(problem)
-
-        res = minimize(
-            problem,
-            algorithm,
-            termination=("n_gen", self.n_gen),
-            seed=self.seed,
-            verbose=False,
-        )
-
-        solutions = self._dedup_results(res, self.ctx.plant_slugs, self.ctx.n_plots)
-        return OptimizationResult(solutions=solutions)
-
-    def optimize_streaming(self) -> Generator[dict, None, None]:
-        """Yield per-generation hypervolume data, then yield the final result."""
-        problem = CompanionPlantingProblem(self.ctx)
-        algorithm = self._build_algorithm(problem)
-
-        algorithm.setup(
-            problem,
-            termination=("n_gen", self.n_gen),
-            seed=self.seed,
-        )
-
-        hv_indicator = HV(ref_point=np.array([0.0, 0.0]))
-
-        while algorithm.has_next():
-            algorithm.next()
-            pop = algorithm.pop
-            G = pop.get("G")
-            F = pop.get("F")
-            feasible_mask = np.all(G <= 0, axis=1)
-            F_feasible = F[feasible_mask]
-
-            if len(F_feasible) > 0:
-                hv = float(hv_indicator(F_feasible))
-            else:
-                hv = 0.0
-
-            yield {
-                "type": "progress",
-                "generation": algorithm.n_gen,
-                "hypervolume": hv,
-            }
-
-        res = algorithm.result()
-        solutions = self._dedup_results(res, self.ctx.plant_slugs, self.ctx.n_plots)
-        yield {"type": "result", "result": OptimizationResult(solutions=solutions)}
+        return problem, algorithm

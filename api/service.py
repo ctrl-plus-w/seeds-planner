@@ -180,12 +180,13 @@ def _setup_optimization(req: OptimizeRequest):
 
     ctx = ProblemContext.build(expanded_slugs, req.plot_areas, garden)
 
-    model_cls = get_model("nsga2")
+    model_cls = get_model(req.model)
     args = argparse.Namespace(
         pop_size=req.pop_size,
         n_gen=req.n_gen,
         seed=req.seed,
         n_seeds=req.n_seeds,
+        n_partitions=req.n_partitions,
     )
     model = model_cls(ctx, args)
     return model, ctx, garden

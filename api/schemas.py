@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+ModelName = Literal["nsga2", "ctaea", "cmopso"]
 
 
 class PlantSummary(BaseModel):
@@ -25,10 +29,12 @@ class PlantQuantity(BaseModel):
 class OptimizeRequest(BaseModel):
     plants: list[PlantQuantity] = Field(..., min_length=1)
     plot_areas: list[float] = Field(..., min_length=1)
+    model: ModelName = "nsga2"
     pop_size: int = 200
     n_gen: int = 400
     seed: int | None = None
     n_seeds: int = Field(1, ge=1)
+    n_partitions: int | None = None
     compat_weight: float = Field(0.5, ge=0.0, le=1.0)
 
 

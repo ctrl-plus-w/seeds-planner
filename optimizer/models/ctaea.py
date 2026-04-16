@@ -2,20 +2,17 @@ from __future__ import annotations
 
 import argparse
 
-import numpy as np
 from pymoo.algorithms.moo.ctaea import CTAEA
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.operators.sampling.rnd import IntegerRandomSampling
-from pymoo.optimize import minimize
 from pymoo.util.ref_dirs import get_reference_directions
 
 from optimizer.context import ProblemContext
 from optimizer.models.base import OptimizerModel
 from optimizer.models.problem import CompanionPlantingProblem
-from optimizer.result import OptimizationResult, Solution
-from optimizer.utils.deduplication import CanonicalDuplicateElimination, canonicalize
+from optimizer.utils.deduplication import CanonicalDuplicateElimination
 
 
 class CTAEAModel(OptimizerModel):
@@ -35,9 +32,7 @@ class CTAEAModel(OptimizerModel):
         parser.add_argument("--seed", type=int, default=None)
 
     def __init__(self, ctx: ProblemContext, args: argparse.Namespace) -> None:
-        self.ctx = ctx
-        self.n_gen = args.n_gen
-        self.seed = args.seed
+        super().__init__(ctx, args)
 
         if hasattr(args, "n_partitions") and args.n_partitions is not None:
             n_partitions = args.n_partitions
@@ -48,9 +43,8 @@ class CTAEAModel(OptimizerModel):
             "das-dennis", 2, n_partitions=n_partitions
         )
 
-    def optimize(self) -> OptimizationResult:
+    def _build_problem_and_algorithm(self) -> tuple[CompanionPlantingProblem, CTAEA]:
         problem = CompanionPlantingProblem(self.ctx)
-
         algorithm = CTAEA(
             ref_dirs=self.ref_dirs,
             sampling=IntegerRandomSampling(),
@@ -60,26 +54,4 @@ class CTAEAModel(OptimizerModel):
             mutation=PM(eta=3, vtype=float, repair=RoundingRepair()),
             eliminate_duplicates=CanonicalDuplicateElimination(self.ctx.plant_slugs, self.ctx.n_plots),
         )
-
-        res = minimize(
-            problem,
-            algorithm,
-            termination=("n_gen", self.n_gen),
-            seed=self.seed,
-            verbose=False,
-        )
-
-        if res.F is None or len(res.F) == 0:
-            return OptimizationResult(solutions=[])
-
-        seen: set[tuple] = set()
-        solutions: list[Solution] = []
-        for i in range(len(res.F)):
-            assignments = np.round(res.X[i]).astype(int)
-            key = canonicalize(assignments, self.ctx.plant_slugs, self.ctx.n_plots)
-            if key in seen:
-                continue
-            seen.add(key)
-            solutions.append(Solution(assignments=assignments, objectives=res.F[i]))
-
-        return OptimizationResult(solutions=solutions)
+        return problem, algorithm

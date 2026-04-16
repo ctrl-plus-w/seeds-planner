@@ -17,12 +17,16 @@ export interface PlantQuantity {
   quantity: number
 }
 
+export type ModelName = "nsga2" | "ctaea" | "cmopso"
+
 export interface OptimizeRequest {
   plants: PlantQuantity[]
   plot_areas: number[]
+  model?: ModelName
   pop_size?: number
   n_gen?: number
   seed?: number | null
+  n_partitions?: number | null
   compat_weight?: number
 }
 

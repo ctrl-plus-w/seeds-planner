@@ -6,12 +6,11 @@ import numpy as np
 from pymoo.algorithms.moo.cmopso import CMOPSO
 from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.operators.sampling.rnd import IntegerRandomSampling
-from pymoo.optimize import minimize
 
 from optimizer.context import ProblemContext
 from optimizer.models.base import OptimizerModel
-from optimizer.result import OptimizationResult, Solution
 from optimizer.models.problem import CompanionPlantingProblem
+from optimizer.result import Solution
 
 
 class CMOPSOModel(OptimizerModel):
@@ -39,37 +38,26 @@ class CMOPSOModel(OptimizerModel):
         )
 
     def __init__(self, ctx: ProblemContext, args: argparse.Namespace) -> None:
-        self.ctx = ctx
+        super().__init__(ctx, args)
         self.pop_size = args.pop_size
-        self.n_gen = args.n_gen
-        self.seed = args.seed
 
-    def optimize(self) -> OptimizationResult:
+    def _build_problem_and_algorithm(self) -> tuple[CompanionPlantingProblem, CMOPSO]:
         problem = CompanionPlantingProblem(self.ctx)
-
         algorithm = CMOPSO(
             pop_size=self.pop_size,
             sampling=IntegerRandomSampling(),
             repair=RoundingRepair(),
         )
+        return problem, algorithm
 
-        res = minimize(
-            problem,
-            algorithm,
-            termination=("n_gen", self.n_gen),
-            seed=self.seed,
-            verbose=False,
-        )
-
+    def _postprocess_results(self, res) -> list[Solution]:
+        """CMOPSO does not deduplicate results."""
         if res.F is None or len(res.F) == 0:
-            return OptimizationResult(solutions=[])
-
-        solutions = []
-        for i in range(len(res.F)):
-            solutions.append(
-                Solution(
-                    assignments=np.round(res.X[i]).astype(int),
-                    objectives=res.F[i],
-                )
+            return []
+        return [
+            Solution(
+                assignments=np.round(res.X[i]).astype(int),
+                objectives=res.F[i],
             )
-        return OptimizationResult(solutions=solutions)
+            for i in range(len(res.F))
+        ]

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { Sprout, Loader2 } from "lucide-react"
 import { fetchPlants } from "@/api/client"
-import type { PlantQuantity } from "@/api/types"
+import type { ModelName, PlantQuantity } from "@/api/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { HypervolumePlot } from "@/components/HypervolumePlot"
@@ -9,14 +9,29 @@ import { Input } from "@/components/ui/input"
 import { PlantPicker } from "@/components/PlantPicker"
 import { PlotBuilder } from "@/components/PlotBuilder"
 import { ResultsView } from "@/components/ResultsView"
+import { Select } from "@/components/ui/select"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { useStreamingOptimize } from "@/hooks/useStreamingOptimize"
+
+const MODEL_LABELS: Record<ModelName, string> = {
+  nsga2: "NSGA-II",
+  ctaea: "C-TAEA",
+  cmopso: "CMOPSO",
+}
+
+const MODEL_DESCRIPTIONS: Record<ModelName, string> = {
+  nsga2: "Algorithme génétique multi-objectif avec tri non-dominé",
+  ctaea: "Algorithme à décomposition avec deux archives (contraintes)",
+  cmopso: "Optimisation par essaim de particules multi-objectif sous contraintes",
+}
 
 export function OptimizerPage() {
   const [selected, setSelected] = useLocalStorage<PlantQuantity[]>("seeds-planner:plants", [])
   const [plotAreas, setPlotAreas] = useLocalStorage<number[]>("seeds-planner:plots", [6, 8])
+  const [model, setModel] = useLocalStorage<ModelName>("seeds-planner:model", "nsga2")
   const [popSize, setPopSize] = useLocalStorage<number>("seeds-planner:pop-size", 200)
   const [nGen, setNGen] = useLocalStorage<number>("seeds-planner:n-gen", 400)
+  const [nPartitions, setNPartitions] = useLocalStorage<number>("seeds-planner:n-partitions", 99)
 
   const plantsQuery = useQuery({
     queryKey: ["plants"],
@@ -41,7 +56,7 @@ export function OptimizerPage() {
           <div>
             <h1 className="text-lg font-semibold text-stone-900">Seeds Planner</h1>
             <p className="text-xs text-stone-500">
-              Optimisation NSGA-II du compagnonnage et de l'occupation des parcelles
+              Optimisation multi-objectif du compagnonnage et de l'occupation des parcelles
             </p>
           </div>
         </div>
@@ -107,38 +122,70 @@ export function OptimizerPage() {
           <Card>
             <CardHeader>
               <CardTitle>Paramètres</CardTitle>
-              <CardDescription>Réglages de l'algorithme NSGA-II</CardDescription>
+              <CardDescription>Réglages de l'algorithme {MODEL_LABELS[model]}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-6">
+              <div className="space-y-4">
                 <label className="flex items-center gap-3">
-                  <span className="text-sm text-stone-700">Taille de population</span>
-                  <Input
-                    type="number"
-                    min={10}
-                    step={10}
-                    value={popSize}
-                    onChange={(e) => {
-                      const n = parseInt(e.target.value, 10)
-                      if (!isNaN(n) && n >= 10) setPopSize(n)
-                    }}
-                    className="w-24"
-                  />
+                  <span className="text-sm text-stone-700">Algorithme</span>
+                  <Select
+                    value={model}
+                    onChange={(e) => setModel(e.target.value as ModelName)}
+                    className="w-48"
+                  >
+                    <option value="nsga2">NSGA-II</option>
+                    <option value="ctaea">C-TAEA</option>
+                    <option value="cmopso">CMOPSO</option>
+                  </Select>
                 </label>
-                <label className="flex items-center gap-3">
-                  <span className="text-sm text-stone-700">Générations</span>
-                  <Input
-                    type="number"
-                    min={10}
-                    step={10}
-                    value={nGen}
-                    onChange={(e) => {
-                      const n = parseInt(e.target.value, 10)
-                      if (!isNaN(n) && n >= 10) setNGen(n)
-                    }}
-                    className="w-24"
-                  />
-                </label>
+                <p className="text-xs text-stone-500">{MODEL_DESCRIPTIONS[model]}</p>
+                <div className="flex flex-wrap gap-6">
+                  {model === "ctaea" ? (
+                    <label className="flex items-center gap-3">
+                      <span className="text-sm text-stone-700">Partitions (directions de réf.)</span>
+                      <Input
+                        type="number"
+                        min={3}
+                        step={1}
+                        value={nPartitions}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value, 10)
+                          if (!isNaN(n) && n >= 3) setNPartitions(n)
+                        }}
+                        className="w-24"
+                      />
+                    </label>
+                  ) : (
+                    <label className="flex items-center gap-3">
+                      <span className="text-sm text-stone-700">Taille de population</span>
+                      <Input
+                        type="number"
+                        min={10}
+                        step={10}
+                        value={popSize}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value, 10)
+                          if (!isNaN(n) && n >= 10) setPopSize(n)
+                        }}
+                        className="w-24"
+                      />
+                    </label>
+                  )}
+                  <label className="flex items-center gap-3">
+                    <span className="text-sm text-stone-700">Générations</span>
+                    <Input
+                      type="number"
+                      min={10}
+                      step={10}
+                      value={nGen}
+                      onChange={(e) => {
+                        const n = parseInt(e.target.value, 10)
+                        if (!isNaN(n) && n >= 10) setNGen(n)
+                      }}
+                      className="w-24"
+                    />
+                  </label>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -151,8 +198,10 @@ export function OptimizerPage() {
                 optimize.mutate({
                   plants: selected,
                   plot_areas: plotAreas,
-                  pop_size: popSize,
+                  model,
+                  pop_size: model !== "ctaea" ? popSize : undefined,
                   n_gen: nGen,
+                  n_partitions: model === "ctaea" ? nPartitions : undefined,
                 })
               }
               disabled={!canRun}
@@ -164,7 +213,7 @@ export function OptimizerPage() {
                   Optimisation en cours…
                 </>
               ) : (
-                "Lancer NSGA-II"
+                `Lancer ${MODEL_LABELS[model]}`
               )}
             </Button>
           </div>
