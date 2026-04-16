@@ -31,12 +31,21 @@ class PulpModel(OptimizerModel):
             default=60,
             help='Time limit in seconds (default: 60)',
         )
+        parser.add_argument('--n-gen', type=int, default=0)
+        parser.add_argument('--seed', type=int, default=None)
 
     def __init__(self, ctx: ProblemContext, args: argparse.Namespace) -> None:
         self.ctx = ctx
         self.plant_bonus = args.plant_bonus
         self.plants_malus = args.plants_malus
         self.timer_limit = args.timer_limit
+
+        self.n_gen = getattr(args, 'n_gen', 0)
+        self.seed = getattr(args, 'seed', None)
+
+    def _build_problem_and_algorithm(self):
+        raise NotImplementedError("Pulp utilise sa propre méthode d'optimisation")
+
 
     def build_model(self) -> tuple[pulp.LpProblem, dict]:
         ctx = self.ctx
