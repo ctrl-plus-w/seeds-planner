@@ -14,21 +14,19 @@ from optimizer.context import ProblemContext
 from optimizer.models.base import OptimizerModel
 from optimizer.models.problem import CompanionPlantingProblem
 from optimizer.result import OptimizationResult, Solution
+from optimizer.utils.deduplication import CanonicalDuplicateElimination, canonicalize
 
 
-class NSGA2InitialModel(OptimizerModel):
-    """Baseline NSGA-II: random integer sampling, no domain-aware repair.
+class NSGA2Model(OptimizerModel):
+    """NSGA-II sur une instance dont les quantités ont été expansées en amont
+    (une variable de décision par unité de plante, cf. api/service.py)."""
 
-    Kept for comparison against `nsga2-quantity`. Tends to leave parcels
-    underfilled on tight instances because nothing pushes the search toward
-    dense layouts."""
-
-    name = "nsga2-initial"
+    name = "nsga2"
 
     @staticmethod
     def add_arguments(parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--pop-size", type=int, default=100)
-        parser.add_argument("--n-gen", type=int, default=200)
+        parser.add_argument("--pop-size", type=int, default=200)
+        parser.add_argument("--n-gen", type=int, default=400)
         parser.add_argument("--seed", type=int, default=None)
 
     def __init__(self, ctx: ProblemContext, args: argparse.Namespace) -> None:
@@ -45,7 +43,7 @@ class NSGA2InitialModel(OptimizerModel):
             sampling=IntegerRandomSampling(),
             crossover=SBX(prob=0.9, eta=3, vtype=float, repair=RoundingRepair()),
             mutation=PM(eta=3, vtype=float, repair=RoundingRepair()),
-            eliminate_duplicates=True,
+            eliminate_duplicates=CanonicalDuplicateElimination(self.ctx.plant_slugs),
         )
 
         res = minimize(
@@ -59,12 +57,14 @@ class NSGA2InitialModel(OptimizerModel):
         if res.F is None or len(res.F) == 0:
             return OptimizationResult(solutions=[])
 
-        return OptimizationResult(
-            solutions=[
-                Solution(
-                    assignments=np.round(res.X[i]).astype(int),
-                    objectives=res.F[i],
-                )
-                for i in range(len(res.F))
-            ]
-        )
+        seen: set[tuple] = set()
+        solutions: list[Solution] = []
+        for i in range(len(res.F)):
+            assignments = np.round(res.X[i]).astype(int)
+            key = canonicalize(assignments, self.ctx.plant_slugs)
+            if key in seen:
+                continue
+            seen.add(key)
+            solutions.append(Solution(assignments=assignments, objectives=res.F[i]))
+
+        return OptimizationResult(solutions=solutions)
