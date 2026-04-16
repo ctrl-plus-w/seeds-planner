@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 
 [[package]]
@@ -811,6 +811,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pulp"
+version = "3.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/16/1c/d880b739b841a8aa81143091c9bdda5e72e226a660aa13178cb312d4b27f/pulp-3.3.0.tar.gz", hash = "sha256:7eb99b9ce7beeb8bbb7ea9d1c919f02f003ab7867e0d1e322f2f2c26dd31c8ba", size = 16301847, upload-time = "2025-09-18T08:14:57.552Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/99/6c/64cafaceea3f99927e84b38a362ec6a8f24f33061c90bda77dfe1cd4c3c6/pulp-3.3.0-py3-none-any.whl", hash = "sha256:dd6ad2d63f196d1254eddf9dcff5cd224912c1f046120cb7c143c5b0eda63fae", size = 16387700, upload-time = "2025-09-18T08:14:53.368Z" },
+]
+
+[[package]]
 name = "pycparser"
 version = "3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1009,6 +1018,7 @@ dependencies = [
     { name = "black" },
     { name = "httpx" },
     { name = "numpy" },
+    { name = "pulp" },
     { name = "pymoo" },
     { name = "python-dotenv" },
 ]
@@ -1019,6 +1029,7 @@ requires-dist = [
     { name = "black", specifier = ">=26.3.1" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "numpy", specifier = ">=1.24" },
+    { name = "pulp", specifier = ">=3.3.0" },
     { name = "pymoo", specifier = ">=0.6" },
     { name = "python-dotenv", specifier = ">=1.0" },
 ]
