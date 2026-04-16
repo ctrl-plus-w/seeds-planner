@@ -5,5 +5,6 @@
     <option name="enabledOnSave" value="true" />
     <option name="sdkName" value="uv (seeds-planner)" />
   </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.11 (Projet-Majeure)" project-jdk-type="Python SDK" />
   <component name="ProjectRootManager" version="2" project-jdk-name="uv (seeds-planner)" project-jdk-type="Python SDK" />
 </project>

@@ -13,6 +13,7 @@ dependencies = [
     "black>=26.3.1",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
+    "pulp>=3.3.0",
 ]
 
 [build-system]
