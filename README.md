@@ -1,10 +1,12 @@
 # Seeds Planner
 
-Scrape plant data from [permapeople.org](https://permapeople.org) and optimize companion plant placement across garden plots. Ships as three pieces:
+Scrape plant data from [permapeople.org](https://permapeople.org) and optimize companion plant placement across garden plots. Ships as four services:
 
-- **CLI tools** (`seeds-scraper`, `seeds-optimizer`) for data and terminal-based optimization
-- **HTTP API** (`seeds-api`) — FastAPI backend exposing `/plants` and `/optimize`
+- **Scraper** (`seeds-scraper`) — fetches plant data and companion relationships from permapeople.org
+- **Optimizer** (`seeds-optimizer`) — assigns plants to plots using multi-objective optimization (NSGA-II, C-TAEA, CMOPSO)
+- **HTTP API** (`seeds-api`) — FastAPI backend exposing `/plants`, `/optimize`, and `/optimize/stream`
 - **Web app** (`web/`) — React + Vite frontend to build plots, pick plants, and explore the Pareto front interactively
+- **Benchmark** (`seeds-benchmark`) — runs each optimizer N times and compares metrics
 
 ## Setup
 
@@ -50,11 +52,13 @@ scraper/
 
 optimizer/
   cli.py            CLI entry point (seeds-optimizer)
+  benchmark.py      CLI entry point (seeds-benchmark)
   models/
     base.py            OptimizerModel abstract base class
     problem.py         Shared pymoo Problem (compatibility + space utilization)
-    nsga2_initial.py   First-generation NSGA-II (one variable per plant)
-    nsga2_quantity.py  NSGA-II on a quantity-expanded instance (one variable per plant unit)
+    nsga2.py           NSGA-II genetic algorithm
+    ctaea.py           C-TAEA decomposition-based algorithm
+    cmopso.py          Constrained multi-objective particle swarm
     __init__.py        Model registry
   classes/
     garden_data.py  In-memory representation of all plant data
@@ -62,7 +66,7 @@ optimizer/
   context.py        ProblemContext — optimization inputs derived from user args + garden data
   result.py         Solution and OptimizationResult dataclasses
   data.py           Loads and resolves plant data from JSON
-  utils/            CLI parsing, pair utilities, width parsing, filesystem helpers
+  utils/            CLI parsing, pair utilities, width parsing, deduplication, filesystem helpers
 
 api/
   main.py           FastAPI app + CORS, entry point (seeds-api)
@@ -131,22 +135,19 @@ uv run seeds-optimizer --plants "tomato,basil,carrot,pepper" --plots "6,8"
 uv run seeds-optimizer --plants "tomato:3,basil:2,carrot" --plots "6,8"
 
 # Specify a data directory and model parameters
-uv run seeds-optimizer \
-  --plants "tomato:3,basil:2,carrot,pepper,lettuce:4,marigold:2" \
-  --plots "6,8,10" \
-  --data-dir .out/run_2026-03-23_15-52-37 \
-  --pop-size 150 \
-  --n-gen 300 \
-  --seed 42 \
-  --n-seeds 3 \
-  --top 10
+uv run seeds-optimizer --plants "tomato:3,basil:2,carrot,pepper,lettuce:4,marigold:2" --plots "6,8,10" --pop-size 150 --n-gen 300 --seed 42 --n-seeds 3 --top 10
+
+# Use a different model
+uv run seeds-optimizer --plants "tomato:3,basil:2,carrot" --plots "6,8" --model ctaea
 ```
 
 ### Available models
 
 | Name | Description |
 |------|-------------|
-| `nsga2` | One decision variable per plant unit (quantities are expanded up-front). Duplicate solutions (identical assignment tuples) are filtered out in post-processing to avoid returning the same layout multiple times |
+| `nsga2` | NSGA-II genetic algorithm with duplicate elimination and N-seed population initialization |
+| `ctaea` | C-TAEA decomposition-based algorithm with two archives (convergence + diversity), designed for constrained multi-objective optimization |
+| `cmopso` | Constrained multi-objective particle swarm optimization |
 
 ### Options
 
@@ -155,7 +156,7 @@ uv run seeds-optimizer \
 | `-p`, `--plants` | Comma-separated plants with optional quantities (e.g. `tomato:3,basil:2,carrot`) | *required* |
 | `-k`, `--plots` | Comma-separated plot areas in m² | *required* |
 | `-d`, `--data-dir` | Path to a scraper run directory | latest run in `.out/` |
-| `--model` | Optimization model to use (`nsga2`) | `nsga2` |
+| `--model` | Optimization model to use (`nsga2`, `ctaea`, `cmopso`) | `nsga2` |
 | `--top` | Number of top solutions to display | `5` |
 
 #### NSGA-II options
@@ -166,6 +167,22 @@ uv run seeds-optimizer \
 | `--n-gen` | Number of generations | `200` |
 | `--seed` | Random seed for reproducibility | *none* |
 | `--n-seeds` | Number of diverse seeds to build the initial population | `1` |
+
+#### C-TAEA options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--n-partitions` | Number of reference direction partitions | `99` |
+| `--n-gen` | Number of generations | `400` |
+| `--seed` | Random seed for reproducibility | *none* |
+
+#### CMOPSO options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--pop-size` | Population size | `100` |
+| `--n-gen` | Number of iterations | `200` |
+| `--seed` | Random seed for reproducibility | *none* |
 
 ### Output
 
@@ -189,9 +206,10 @@ The service binds to `http://127.0.0.1:8000` and exposes:
 |--------|------|-------------|
 | `GET` | `/health` | Liveness probe |
 | `GET` | `/plants` | List of plants available from the latest scraper run |
-| `POST` | `/optimize` | Run the optimizer for a given plots + plants payload |
+| `POST` | `/optimize` | Run the optimizer and return all solutions |
+| `POST` | `/optimize/stream` | Run the optimizer and stream hypervolume progress + final result (SSE) |
 
-CORS is pre-configured for the Vite dev server (`http://localhost:5273`).
+CORS is open to all origins (`*`).
 
 ## Web app
 
@@ -208,8 +226,30 @@ Highlights of the interactive view:
 
 - **Plot builder** — add/remove plots and edit their area in m²
 - **Plant picker** — search plants from the scraper run and choose quantities
+- **Streaming optimization** — real-time hypervolume convergence chart during optimization via SSE
 - **Pareto explorer** — scatter plot of every Pareto-optimal solution, plus a compatibility/space slider. Moving the slider reweights the ranking and automatically focuses the best solution for the current weighting; clicking a point or list row selects it manually
 - **Garden preview** — SVG rendering of the selected solution with per-plot breakdown, companion highlights, and unassigned plants
+- **Persistent settings** — plots, plants, and optimizer settings are saved to localStorage
+
+## Benchmark
+
+Run each optimizer model multiple times and compare metrics (solution count, compatibility, utilization, hypervolume, execution time).
+
+```bash
+uv run seeds-benchmark --plants "tomato:3,basil:2,carrot,pepper" --plots "6,8" --runs 5
+
+uv run seeds-benchmark --plants "tomato:3,basil:2,carrot" --plots "6,8,10" --models nsga2,ctaea --runs 10 --seed 0
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-p`, `--plants` | Comma-separated plants with optional quantities | *required* |
+| `-k`, `--plots` | Comma-separated plot areas in m² | *required* |
+| `-d`, `--data-dir` | Path to a scraper run directory | latest run in `.out/` |
+| `--models` | Comma-separated models to benchmark | all registered |
+| `--runs` | Number of runs per model | `5` |
+| `--seed` | Base random seed (run *i* gets seed + *i*) | `42` |
+| `--output` | JSON output file path | `benchmark_results.json` |
 
 ## Adding a new optimizer
 
@@ -232,7 +272,7 @@ class MyModel(OptimizerModel):
         parser.add_argument("--my-param", type=int, default=50)
 
     def __init__(self, ctx: ProblemContext, args: argparse.Namespace) -> None:
-        self.ctx = ctx
+        super().__init__(ctx, args)
         self.my_param = args.my_param
 
     def optimize(self) -> OptimizationResult:
@@ -251,7 +291,7 @@ from optimizer.models.my_model import MyModel
 register_model(MyModel)
 ```
 
-The model is now selectable via `--model my-model`. Model-specific arguments are added automatically through the two-phase CLI parsing in `optimizer/cli.py`.
+The model is now selectable via `--model my-model`. Model-specific arguments are added automatically through the two-phase CLI parsing in `optimizer/cli.py`. Streaming support (`optimize_streaming`) is inherited from the base class.
 
 ## Output structure
 
