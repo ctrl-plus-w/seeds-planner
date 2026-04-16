@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
-import type { OptimizeResponse, PlantInPlot, SolutionResult } from "@/api/types"
+import type { HvPoint, OptimizeResponse, PlantInPlot, SolutionResult } from "@/api/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { GardenSvg } from "./GardenSvg"
+import { HypervolumePlot } from "./HypervolumePlot"
 import { ParetoPlot } from "./ParetoPlot"
 
 interface AggregatedPlant {
@@ -44,6 +45,7 @@ function aggregateUnassigned(names: string[]): string[] {
 
 interface ResultsViewProps {
   result: OptimizeResponse
+  hvCurve?: HvPoint[]
 }
 
 function rerankSolutions(
@@ -70,7 +72,7 @@ function rerankSolutions(
   return scored.map((entry, i) => ({ ...entry.sol, rank: i + 1 }))
 }
 
-export function ResultsView({ result }: ResultsViewProps) {
+export function ResultsView({ result, hvCurve }: ResultsViewProps) {
   const [compatWeight, setCompatWeight] = useState<number>(0.5)
 
   const ranked = useMemo(
@@ -180,6 +182,24 @@ export function ResultsView({ result }: ResultsViewProps) {
           </div>
         </CardContent>
       </Card>
+
+      {hvCurve && hvCurve.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Convergence</CardTitle>
+            <p className="text-xs text-stone-500">
+              Hypervolume sur {hvCurve.length} générations
+            </p>
+          </CardHeader>
+          <CardContent>
+            <HypervolumePlot
+              hvCurve={hvCurve}
+              totalGenerations={hvCurve.length}
+              isStreaming={false}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card key={selected.rank}>
         <CardHeader>

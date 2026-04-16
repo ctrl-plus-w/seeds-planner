@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 from api.schemas import OptimizeRequest, OptimizeResponse, PlantsResponse
-from api.service import NoScrapeRunError, load_plants, run_optimization
+from api.service import NoScrapeRunError, load_plants, run_optimization, run_optimization_stream
 
 app = FastAPI(
     title="Seeds Planner API",
@@ -40,6 +41,23 @@ def get_plants() -> PlantsResponse:
 def post_optimize(req: OptimizeRequest) -> OptimizeResponse:
     try:
         return run_optimization(req)
+    except NoScrapeRunError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/optimize/stream")
+def post_optimize_stream(req: OptimizeRequest):
+    try:
+        return StreamingResponse(
+            run_optimization_stream(req),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
     except NoScrapeRunError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:

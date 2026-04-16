@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 from collections import defaultdict
+from collections.abc import Generator
 from pathlib import Path
 
 import numpy as np
@@ -154,7 +156,8 @@ def _build_solution_result(
     )
 
 
-def run_optimization(req: OptimizeRequest) -> OptimizeResponse:
+def _setup_optimization(req: OptimizeRequest):
+    """Shared setup for both sync and streaming optimization."""
     data_dir = _resolve_data_dir()
     garden = load_garden_data(data_dir)
 
@@ -185,9 +188,13 @@ def run_optimization(req: OptimizeRequest) -> OptimizeResponse:
         n_seeds=req.n_seeds,
     )
     model = model_cls(ctx, args)
-    result = model.optimize()
-    ranked = _rank_solutions(result, req.compat_weight)
+    return model, ctx, garden
 
+
+def _build_response(
+    result: OptimizationResult, ctx: ProblemContext, garden, compat_weight: float
+) -> OptimizeResponse:
+    ranked = _rank_solutions(result, compat_weight)
     solutions = [
         _build_solution_result(
             rank=rank,
@@ -198,8 +205,40 @@ def run_optimization(req: OptimizeRequest) -> OptimizeResponse:
         )
         for rank, idx in enumerate(ranked, start=1)
     ]
-
     return OptimizeResponse(
         n_total_solutions=result.n_solutions,
         solutions=solutions,
     )
+
+
+def run_optimization(req: OptimizeRequest) -> OptimizeResponse:
+    model, ctx, garden = _setup_optimization(req)
+    result = model.optimize()
+    return _build_response(result, ctx, garden, req.compat_weight)
+
+
+def _stream_events(model, ctx, garden, compat_weight: float) -> Generator[str, None, None]:
+    """Inner generator: yields SSE events. Called after validation."""
+    result = None
+    for event in model.optimize_streaming():
+        if event["type"] == "progress":
+            data = json.dumps({
+                "generation": event["generation"],
+                "hypervolume": event["hypervolume"],
+            })
+            yield f"event: progress\ndata: {data}\n\n"
+        elif event["type"] == "result":
+            result = event["result"]
+
+    response = _build_response(result, ctx, garden, compat_weight)
+    yield f"event: result\ndata: {response.model_dump_json()}\n\n"
+
+
+def run_optimization_stream(req: OptimizeRequest) -> Generator[str, None, None]:
+    """Validate eagerly, then return a generator of SSE events.
+
+    Raises ValueError / NoScrapeRunError *before* the generator starts,
+    so the FastAPI endpoint can still return proper HTTP error responses.
+    """
+    model, ctx, garden = _setup_optimization(req)
+    return _stream_events(model, ctx, garden, req.compat_weight)

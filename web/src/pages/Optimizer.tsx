@@ -1,14 +1,16 @@
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { Sprout, Loader2 } from "lucide-react"
-import { fetchPlants, postOptimize } from "@/api/client"
-import type { OptimizeResponse, PlantQuantity } from "@/api/types"
+import { fetchPlants } from "@/api/client"
+import type { PlantQuantity } from "@/api/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { HypervolumePlot } from "@/components/HypervolumePlot"
 import { Input } from "@/components/ui/input"
 import { PlantPicker } from "@/components/PlantPicker"
 import { PlotBuilder } from "@/components/PlotBuilder"
 import { ResultsView } from "@/components/ResultsView"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
+import { useStreamingOptimize } from "@/hooks/useStreamingOptimize"
 
 export function OptimizerPage() {
   const [selected, setSelected] = useLocalStorage<PlantQuantity[]>("seeds-planner:plants", [])
@@ -22,15 +24,7 @@ export function OptimizerPage() {
     staleTime: 5 * 60 * 1000,
   })
 
-  const optimize = useMutation<OptimizeResponse, Error>({
-    mutationFn: () =>
-      postOptimize({
-        plants: selected,
-        plot_areas: plotAreas,
-        pop_size: popSize,
-        n_gen: nGen,
-      }),
-  })
+  const optimize = useStreamingOptimize()
 
   const totalInstances = selected.reduce((s, p) => s + p.quantity, 0)
   const canRun =
@@ -153,7 +147,14 @@ export function OptimizerPage() {
         {plantsQuery.data && (
           <div className="flex justify-end">
             <Button
-              onClick={() => optimize.mutate()}
+              onClick={() =>
+                optimize.mutate({
+                  plants: selected,
+                  plot_areas: plotAreas,
+                  pop_size: popSize,
+                  n_gen: nGen,
+                })
+              }
               disabled={!canRun}
               className="min-w-40"
             >
@@ -169,15 +170,35 @@ export function OptimizerPage() {
           </div>
         )}
 
-        {optimize.isError && (
+        {optimize.isPending && optimize.hvCurve.length > 0 && (
           <Card>
+            <CardHeader>
+              <CardTitle>Convergence</CardTitle>
+              <p className="text-xs text-stone-500">
+                Génération {optimize.currentGeneration} / {optimize.totalGenerations}
+              </p>
+            </CardHeader>
             <CardContent>
-              <p className="text-sm text-red-600">Erreur : {optimize.error.message}</p>
+              <HypervolumePlot
+                hvCurve={optimize.hvCurve}
+                totalGenerations={optimize.totalGenerations}
+                isStreaming
+              />
             </CardContent>
           </Card>
         )}
 
-        {optimize.data && <ResultsView result={optimize.data} />}
+        {optimize.isError && (
+          <Card>
+            <CardContent>
+              <p className="text-sm text-red-600">Erreur : {optimize.error?.message}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {optimize.data && (
+          <ResultsView result={optimize.data} hvCurve={optimize.hvCurve} />
+        )}
       </main>
     </div>
   )

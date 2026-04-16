@@ -53,3 +53,8 @@ export interface OptimizeResponse {
   n_total_solutions: number
   solutions: SolutionResult[]
 }
+
+export interface HvPoint {
+  generation: number
+  hypervolume: number
+}
