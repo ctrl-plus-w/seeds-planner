@@ -10,11 +10,16 @@ Scrape plant data from [permapeople.org](https://permapeople.org) and optimize c
 
 ## Setup
 
-Requires Python >= 3.11 and [uv](https://docs.astral.sh/uv/).
+Requires Python ≥ 3.11 with [uv](https://docs.astral.sh/uv/), and Node.js ≥ 20.19 (or ≥ 22.12) with npm for the web app.
 
 ```bash
-# Install dependencies
+# Python dependencies
 uv sync
+
+# Web app dependencies
+cd web
+npm install
+cd ..
 ```
 
 Create a `.env` file at the project root with your API credentials (required for the scraper):
@@ -22,6 +27,56 @@ Create a `.env` file at the project root with your API credentials (required for
 ```
 PERMAPEOPLE_ID=your_api_id
 PERMAPEOPLE_KEY=your_api_key
+```
+
+## Quickstart
+
+After completing [Setup](#setup), go from zero to a ranked garden layout in three steps.
+
+### 1. Scrape plant data
+
+Fetch the plant catalogue and companion/antagonist relationships from permapeople.org:
+
+```bash
+uv run seeds-scraper scrape
+uv run seeds-scraper companions
+```
+
+Output lands in `.out/run_<timestamp>/`. The optimizer auto-picks the latest run.
+
+### 2. Run the optimizer
+
+Pick a CLI run or the interactive web app.
+
+**CLI** — prints the top solutions straight to the terminal:
+
+```bash
+uv run seeds-optimizer \
+  -p "carrot:20,beet:20,pea:20,common bean:20,marjoram:20,zea mays:20" \
+  -k "5,2,4,3"
+```
+
+**Web app** — start the API and the frontend in two terminals:
+
+```bash
+# terminal 1
+uv run seeds-api
+
+# terminal 2
+cd webnpm run dev
+```
+
+Open http://localhost:5273, build plots, pick plants, and explore the Pareto front.
+
+### 3. (Optional) Compare models
+
+Benchmark NSGA-II, NSGA-III, and CMOPSO on the same inputs:
+
+```bash
+uv run seeds-benchmark \
+  -p "carrot:20,beet:20,pea:20,common bean:20,marjoram:20,zea mays:20" \
+  -k "5,2,4,3" \
+  --models nsga2,nsga3,cmopso --workers 5
 ```
 
 ## Architecture
@@ -143,47 +198,47 @@ uv run seeds-optimizer --plants "tomato:3,basil:2,carrot" --plots "6,8" --model 
 
 ### Available models
 
-| Name | Description |
-|------|-------------|
-| `nsga2` | NSGA-II genetic algorithm with duplicate elimination and N-seed population initialization |
-| `nsga3` | NSGA-III reference-direction-based algorithm for constrained multi-objective optimization |
-| `cmopso` | Constrained multi-objective particle swarm optimization |
+| Name     | Description                                                                               |
+| -------- | ----------------------------------------------------------------------------------------- |
+| `nsga2`  | NSGA-II genetic algorithm with duplicate elimination and N-seed population initialization |
+| `nsga3`  | NSGA-III reference-direction-based algorithm for constrained multi-objective optimization |
+| `cmopso` | Constrained multi-objective particle swarm optimization                                   |
 
 ### Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-p`, `--plants` | Comma-separated plants with optional quantities (e.g. `tomato:3,basil:2,carrot`) | *required* |
-| `-k`, `--plots` | Comma-separated plot areas in m² | *required* |
-| `-d`, `--data-dir` | Path to a scraper run directory | latest run in `.out/` |
-| `--model` | Optimization model to use (`nsga2`, `nsga3`, `cmopso`) | `nsga2` |
-| `--top` | Number of top solutions to display | `5` |
+| Flag               | Description                                                                      | Default               |
+| ------------------ | -------------------------------------------------------------------------------- | --------------------- |
+| `-p`, `--plants`   | Comma-separated plants with optional quantities (e.g. `tomato:3,basil:2,carrot`) | _required_            |
+| `-k`, `--plots`    | Comma-separated plot areas in m²                                                 | _required_            |
+| `-d`, `--data-dir` | Path to a scraper run directory                                                  | latest run in `.out/` |
+| `--model`          | Optimization model to use (`nsga2`, `nsga3`, `cmopso`)                           | `nsga2`               |
+| `--top`            | Number of top solutions to display                                               | `5`                   |
 
 #### NSGA-II options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--pop-size` | Population size | `100` |
-| `--n-gen` | Number of generations | `200` |
-| `--seed` | Random seed for reproducibility | *none* |
-| `--n-seeds` | Number of diverse seeds to build the initial population | `1` |
+| Flag         | Description                                             | Default |
+| ------------ | ------------------------------------------------------- | ------- |
+| `--pop-size` | Population size                                         | `100`   |
+| `--n-gen`    | Number of generations                                   | `200`   |
+| `--seed`     | Random seed for reproducibility                         | _none_  |
+| `--n-seeds`  | Number of diverse seeds to build the initial population | `1`     |
 
 #### NSGA-III options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--pop-size` | Population size | `100` |
-| `--n-partitions` | Number of reference direction partitions | `99` |
-| `--n-gen` | Number of generations | `400` |
-| `--seed` | Random seed for reproducibility | *none* |
+| Flag             | Description                              | Default |
+| ---------------- | ---------------------------------------- | ------- |
+| `--pop-size`     | Population size                          | `100`   |
+| `--n-partitions` | Number of reference direction partitions | `99`    |
+| `--n-gen`        | Number of generations                    | `400`   |
+| `--seed`         | Random seed for reproducibility          | _none_  |
 
 #### CMOPSO options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--pop-size` | Population size | `100` |
-| `--n-gen` | Number of iterations | `200` |
-| `--seed` | Random seed for reproducibility | *none* |
+| Flag         | Description                     | Default |
+| ------------ | ------------------------------- | ------- |
+| `--pop-size` | Population size                 | `100`   |
+| `--n-gen`    | Number of iterations            | `200`   |
+| `--seed`     | Random seed for reproducibility | _none_  |
 
 ### Output
 
@@ -203,11 +258,11 @@ uv run seeds-api
 
 The service binds to `http://127.0.0.1:8000` and exposes:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Liveness probe |
-| `GET` | `/plants` | List of plants available from the latest scraper run |
-| `POST` | `/optimize` | Run the optimizer and return all solutions |
+| Method | Path               | Description                                                            |
+| ------ | ------------------ | ---------------------------------------------------------------------- |
+| `GET`  | `/health`          | Liveness probe                                                         |
+| `GET`  | `/plants`          | List of plants available from the latest scraper run                   |
+| `POST` | `/optimize`        | Run the optimizer and return all solutions                             |
 | `POST` | `/optimize/stream` | Run the optimizer and stream hypervolume progress + final result (SSE) |
 
 CORS is open to all origins (`*`).
@@ -242,15 +297,15 @@ uv run seeds-benchmark --plants "tomato:3,basil:2,carrot,pepper" --plots "6,8" -
 uv run seeds-benchmark --plants "tomato:3,basil:2,carrot" --plots "6,8,10" --models nsga2,nsga3 --runs 10 --seed 0
 ```
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-p`, `--plants` | Comma-separated plants with optional quantities | *required* |
-| `-k`, `--plots` | Comma-separated plot areas in m² | *required* |
-| `-d`, `--data-dir` | Path to a scraper run directory | latest run in `.out/` |
-| `--models` | Comma-separated models to benchmark | all registered |
-| `--runs` | Number of runs per model | `5` |
-| `--seed` | Base random seed (run *i* gets seed + *i*) | `42` |
-| `--output` | JSON output file path | `benchmark_results.json` |
+| Flag               | Description                                     | Default                  |
+| ------------------ | ----------------------------------------------- | ------------------------ |
+| `-p`, `--plants`   | Comma-separated plants with optional quantities | _required_               |
+| `-k`, `--plots`    | Comma-separated plot areas in m²                | _required_               |
+| `-d`, `--data-dir` | Path to a scraper run directory                 | latest run in `.out/`    |
+| `--models`         | Comma-separated models to benchmark             | all registered           |
+| `--runs`           | Number of runs per model                        | `5`                      |
+| `--seed`           | Base random seed (run _i_ gets seed + _i_)      | `42`                     |
+| `--output`         | JSON output file path                           | `benchmark_results.json` |
 
 ## Adding a new optimizer
 
