@@ -49,10 +49,18 @@ class OptimizerModel(ABC):
         """Deduplicate and convert pymoo result to Solution list."""
         if res.F is None or len(res.F) == 0:
             return []
+
+        if res.G is not None and len(res.G) > 0:
+            feasible = np.all(res.G <= 0, axis=1)
+        else:
+            feasible = np.ones(len(res.F), dtype=bool)
+
         seen: set[tuple] = set()
         solutions: list[Solution] = []
         for i in range(len(res.F)):
-            assignments = np.round(res.X[i]).astype(int)
+            if not feasible[i]:
+                continue
+            assignments = np.round(np.clip(res.X[i], 0, self.ctx.n_plots)).astype(int)
             key = canonicalize(assignments, self.ctx.plant_slugs, self.ctx.n_plots)
             if key in seen:
                 continue

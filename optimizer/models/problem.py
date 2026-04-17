@@ -23,7 +23,7 @@ class CompanionPlantingProblem(ElementwiseProblem):
 
     def _evaluate(self, x, out, *args, **kwargs):
         ctx = self.ctx
-        assignments = np.round(x).astype(int)
+        assignments = np.round(np.clip(x, self.xl, self.xu)).astype(int)
 
         plots: dict[int, list[int]] = defaultdict(list)
         for i, plot_id in enumerate(assignments):
