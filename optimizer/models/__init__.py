@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from optimizer.models import pulp_model
-
 if TYPE_CHECKING:
     from optimizer.models.base import OptimizerModel
 
@@ -21,10 +19,10 @@ def get_model(name: str) -> type[OptimizerModel]:
     return MODEL_REGISTRY[name]
 
 
+from optimizer.models.cmopso import CMOPSOModel  # noqa: E402
 from optimizer.models.nsga2 import NSGA2Model  # noqa: E402
-from optimizer.models.cmopso import CMOPSOModel
 from optimizer.models.nsga3 import NSGA3Model  # noqa: E402
-from optimizer.models.pulp_model import PulpModel
+from optimizer.models.pulp import PulpModel  # noqa: E402
 
 register_model(NSGA2Model)
 register_model(CMOPSOModel)
